@@ -47,15 +47,6 @@ class Migration(SchemaMigration):
         ))
         db.send_create_signal(u'accounts', ['Account'])
 
-        # Adding M2M table for field secondary_users on 'Account'
-        m2m_table_name = db.shorten_name(u'accounts_account_secondary_users')
-        db.create_table(m2m_table_name, (
-            ('id', models.AutoField(verbose_name='ID', primary_key=True, auto_created=True)),
-            ('account', models.ForeignKey(orm['accounts.account'], null=False)),
-            ('user', models.ForeignKey(orm[AUTH_USER_MODEL], null=False))
-        ))
-        db.create_unique('accounts_account_secondary_users', ['account_id', 'user_id'])
-
         # Adding model 'Transfer'
         db.create_table(u'accounts_transfer', (
             (u'id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
@@ -96,6 +87,14 @@ class Migration(SchemaMigration):
         ))
         db.send_create_signal(u'accounts', ['IPAddressRecord'])
 
+        # Adding model 'AccountSecondaryUsers'
+        db.create_table(u'accounts_accountsecondaryusers', (
+            (u'id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
+            ('account', self.gf('django.db.models.fields.related.ForeignKey')(to=orm['accounts.Account'])),
+            ('user', self.gf('django.db.models.fields.related.ForeignKey')(to=orm[AUTH_USER_MODEL])),
+        ))
+        db.send_create_signal(u'accounts', ['AccountSecondaryUsers'])
+
 
     def backwards(self, orm):
         # Removing unique constraint on 'Transaction', fields ['transfer', 'account']
@@ -107,9 +106,6 @@ class Migration(SchemaMigration):
         # Deleting model 'Account'
         db.delete_table(u'accounts_account')
 
-        # Removing M2M table for field secondary_users on 'Account'
-        db.delete_table(db.shorten_name(u'accounts_account_secondary_users'))
-
         # Deleting model 'Transfer'
         db.delete_table(u'accounts_transfer')
 
@@ -118,6 +114,9 @@ class Migration(SchemaMigration):
 
         # Deleting model 'IPAddressRecord'
         db.delete_table(u'accounts_ipaddressrecord')
+
+        # Deleting model 'AccountSecondaryUsers'
+        db.delete_table(u'accounts_accountsecondaryusers')
 
 
     models = {
@@ -134,9 +133,15 @@ class Migration(SchemaMigration):
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'name': ('django.db.models.fields.CharField', [], {'max_length': '128', 'unique': 'True', 'null': 'True', 'blank': 'True'}),
             'primary_user': ('django.db.models.fields.related.ForeignKey', [], {'blank': 'True', 'related_name': "'accounts'", 'null': 'True', 'on_delete': 'models.SET_NULL', 'to': u"orm['{}']".format(AUTH_USER_MODEL)}),
-            'secondary_users': ('django.db.models.fields.related.ManyToManyField', [], {'to': u"orm['{}']".format(AUTH_USER_MODEL), 'symmetrical': 'False', 'blank': 'True'}),
+            'secondary_users': ('django.db.models.fields.related.ManyToManyField', [], {'to': u"orm['{}']".format(AUTH_USER_MODEL), 'symmetrical': 'False', 'through': u"orm['accounts.AccountSecondaryUsers']", 'blank': 'True'}),
             'start_date': ('django.db.models.fields.DateTimeField', [], {'null': 'True', 'blank': 'True'}),
             'status': ('django.db.models.fields.CharField', [], {'default': "'Open'", 'max_length': '32'})
+        },
+        u'accounts.accountsecondaryusers': {
+            'Meta': {'object_name': 'AccountSecondaryUsers'},
+            'account': ('django.db.models.fields.related.ForeignKey', [], {'to': u"orm['accounts.Account']"}),
+            u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'user': ('django.db.models.fields.related.ForeignKey', [], {'to': u"orm['{}']".format(AUTH_USER_MODEL)})
         },
         u'accounts.accounttype': {
             'Meta': {'object_name': 'AccountType'},
@@ -191,150 +196,20 @@ class Migration(SchemaMigration):
             u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'name': ('django.db.models.fields.CharField', [], {'max_length': '50'})
         },
-        AUTH_USER_MODEL: {
-            'Meta': {'object_name': AUTH_USER_MODEL_NAME},
-            'date_joined': ('django.db.models.fields.DateTimeField', [],
-                            {'default': 'datetime.datetime.now'}),
-            'email': ('django.db.models.fields.EmailField', [], {'max_length': '75', 'blank': 'True'}),
-            'first_name': ('django.db.models.fields.CharField', [], {'max_length': '30', 'blank': 'True'}),
-            'groups': ('django.db.models.fields.related.ManyToManyField', [], {'to': "orm['auth.Group']", 'symmetrical': 'False', 'blank': 'True'}),
+        'auth.user': {
+            'Meta': {'object_name': 'User'},
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'is_active': ('django.db.models.fields.BooleanField', [], {'default': 'True'}),
-            'is_staff': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
-            'is_superuser': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
-            'last_login': ('django.db.models.fields.DateTimeField', [], {'default': 'datetime.datetime.now'}),
-            'last_name': ('django.db.models.fields.CharField', [], {'max_length': '30', 'blank': 'True'}),
-            'password': ('django.db.models.fields.CharField', [], {'max_length': '128'}),
-            'user_permissions': ('django.db.models.fields.related.ManyToManyField', [], {'to': "orm['auth.Permission']", 'symmetrical': 'False', 'blank': 'True'}),
-            'username': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '30'})
         },
-        'catalogue.attributeentity': {
-            'Meta': {'object_name': 'AttributeEntity'},
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'name': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
-            'slug': ('django.db.models.fields.SlugField', [], {'db_index': 'True', 'max_length': '255', 'blank': 'True'}),
-            'type': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'entities'", 'to': "orm['catalogue.AttributeEntityType']"})
-        },
-        'catalogue.attributeentitytype': {
-            'Meta': {'object_name': 'AttributeEntityType'},
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'name': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
-            'slug': ('django.db.models.fields.SlugField', [], {'db_index': 'True', 'max_length': '255', 'blank': 'True'})
-        },
-        'catalogue.attributeoption': {
-            'Meta': {'object_name': 'AttributeOption'},
-            'group': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'options'", 'to': "orm['catalogue.AttributeOptionGroup']"}),
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'option': ('django.db.models.fields.CharField', [], {'max_length': '255'})
-        },
-        'catalogue.attributeoptiongroup': {
-            'Meta': {'object_name': 'AttributeOptionGroup'},
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'name': ('django.db.models.fields.CharField', [], {'max_length': '128'})
-        },
-        'catalogue.category': {
-            'Meta': {'ordering': "['full_name']", 'object_name': 'Category'},
-            'depth': ('django.db.models.fields.PositiveIntegerField', [], {}),
-            'description': ('django.db.models.fields.TextField', [], {'null': 'True', 'blank': 'True'}),
-            'full_name': ('django.db.models.fields.CharField', [], {'max_length': '1024', 'db_index': 'True'}),
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'image': ('django.db.models.fields.files.ImageField', [], {'max_length': '100', 'null': 'True', 'blank': 'True'}),
-            'name': ('django.db.models.fields.CharField', [], {'max_length': '255', 'db_index': 'True'}),
-            'numchild': ('django.db.models.fields.PositiveIntegerField', [], {'default': '0'}),
-            'path': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '255'}),
-            'slug': ('django.db.models.fields.SlugField', [], {'max_length': '1024', 'db_index': 'True'})
-        },
-        'catalogue.option': {
-            'Meta': {'object_name': 'Option'},
-            'code': ('django.db.models.fields.SlugField', [], {'max_length': '128', 'db_index': 'True'}),
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'name': ('django.db.models.fields.CharField', [], {'max_length': '128'}),
-            'type': ('django.db.models.fields.CharField', [], {'default': "'Required'", 'max_length': '128'})
-        },
-        'catalogue.product': {
-            'Meta': {'ordering': "['-date_created']", 'object_name': 'Product'},
-            'attributes': ('django.db.models.fields.related.ManyToManyField', [], {'to': "orm['catalogue.ProductAttribute']", 'through': "orm['catalogue.ProductAttributeValue']", 'symmetrical': 'False'}),
-            'categories': ('django.db.models.fields.related.ManyToManyField', [], {'to': "orm['catalogue.Category']", 'through': "orm['catalogue.ProductCategory']", 'symmetrical': 'False'}),
-            'date_created': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'blank': 'True'}),
-            'date_updated': ('django.db.models.fields.DateTimeField', [], {'auto_now': 'True', 'db_index': 'True', 'blank': 'True'}),
-            'description': ('django.db.models.fields.TextField', [], {'null': 'True', 'blank': 'True'}),
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'is_discountable': ('django.db.models.fields.BooleanField', [], {'default': 'True'}),
-            'parent': ('django.db.models.fields.related.ForeignKey', [], {'blank': 'True', 'related_name': "'variants'", 'null': 'True', 'to': "orm['catalogue.Product']"}),
-            'product_class': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['catalogue.ProductClass']", 'null': 'True'}),
-            'product_options': ('django.db.models.fields.related.ManyToManyField', [], {'to': "orm['catalogue.Option']", 'symmetrical': 'False', 'blank': 'True'}),
-            'recommended_products': ('django.db.models.fields.related.ManyToManyField', [], {'to': "orm['catalogue.Product']", 'symmetrical': 'False', 'through': "orm['catalogue.ProductRecommendation']", 'blank': 'True'}),
-            'related_products': ('django.db.models.fields.related.ManyToManyField', [], {'symmetrical': 'False', 'related_name': "'relations'", 'blank': 'True', 'to': "orm['catalogue.Product']"}),
-            'score': ('django.db.models.fields.FloatField', [], {'default': '0.0', 'db_index': 'True'}),
-            'slug': ('django.db.models.fields.SlugField', [], {'max_length': '255', 'db_index': 'True'}),
-            'status': ('django.db.models.fields.CharField', [], {'db_index': 'True', 'max_length': '128', 'null': 'True', 'blank': 'True'}),
-            'title': ('django.db.models.fields.CharField', [], {'max_length': '255', 'null': 'True', 'blank': 'True'}),
-            'upc': ('django.db.models.fields.CharField', [], {'max_length': '64', 'unique': 'True', 'null': 'True', 'blank': 'True'})
-        },
-        'catalogue.productattribute': {
-            'Meta': {'ordering': "['code']", 'object_name': 'ProductAttribute'},
-            'code': ('django.db.models.fields.SlugField', [], {'max_length': '128', 'db_index': 'True'}),
-            'entity_type': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['catalogue.AttributeEntityType']", 'null': 'True', 'blank': 'True'}),
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'name': ('django.db.models.fields.CharField', [], {'max_length': '128'}),
-            'option_group': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['catalogue.AttributeOptionGroup']", 'null': 'True', 'blank': 'True'}),
-            'product_class': ('django.db.models.fields.related.ForeignKey', [], {'blank': 'True', 'related_name': "'attributes'", 'null': 'True', 'to': "orm['catalogue.ProductClass']"}),
-            'required': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
-            'type': ('django.db.models.fields.CharField', [], {'default': "'text'", 'max_length': '20'})
-        },
-        'catalogue.productattributevalue': {
-            'Meta': {'object_name': 'ProductAttributeValue'},
-            'attribute': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['catalogue.ProductAttribute']"}),
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'product': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'attribute_values'", 'to': "orm['catalogue.Product']"}),
-            'value_boolean': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
-            'value_date': ('django.db.models.fields.DateField', [], {'null': 'True', 'blank': 'True'}),
-            'value_entity': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['catalogue.AttributeEntity']", 'null': 'True', 'blank': 'True'}),
-            'value_float': ('django.db.models.fields.FloatField', [], {'null': 'True', 'blank': 'True'}),
-            'value_integer': ('django.db.models.fields.IntegerField', [], {'null': 'True', 'blank': 'True'}),
-            'value_option': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['catalogue.AttributeOption']", 'null': 'True', 'blank': 'True'}),
-            'value_richtext': ('django.db.models.fields.TextField', [], {'null': 'True', 'blank': 'True'}),
-            'value_text': ('django.db.models.fields.CharField', [], {'max_length': '255', 'null': 'True', 'blank': 'True'})
-        },
-        'catalogue.productcategory': {
-            'Meta': {'ordering': "['-is_canonical']", 'object_name': 'ProductCategory'},
-            'category': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['catalogue.Category']"}),
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'is_canonical': ('django.db.models.fields.BooleanField', [], {'default': 'False', 'db_index': 'True'}),
-            'product': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['catalogue.Product']"})
-        },
-        'catalogue.productclass': {
-            'Meta': {'ordering': "['name']", 'object_name': 'ProductClass'},
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'name': ('django.db.models.fields.CharField', [], {'max_length': '128'}),
-            'options': ('django.db.models.fields.related.ManyToManyField', [], {'to': "orm['catalogue.Option']", 'symmetrical': 'False', 'blank': 'True'}),
-            'requires_shipping': ('django.db.models.fields.BooleanField', [], {'default': 'True'}),
-            'slug': ('django.db.models.fields.SlugField', [], {'unique': 'True', 'max_length': '128', 'db_index': 'True'})
-        },
-        'catalogue.productrecommendation': {
-            'Meta': {'object_name': 'ProductRecommendation'},
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'primary': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'primary_recommendations'", 'to': "orm['catalogue.Product']"}),
-            'ranking': ('django.db.models.fields.PositiveSmallIntegerField', [], {'default': '0'}),
-            'recommendation': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['catalogue.Product']"})
-        },
-        'contenttypes.contenttype': {
+        u'contenttypes.contenttype': {
             'Meta': {'ordering': "('name',)", 'unique_together': "(('app_label', 'model'),)", 'object_name': 'ContentType', 'db_table': "'django_content_type'"},
             'app_label': ('django.db.models.fields.CharField', [], {'max_length': '100'}),
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'model': ('django.db.models.fields.CharField', [], {'max_length': '100'}),
             'name': ('django.db.models.fields.CharField', [], {'max_length': '100'})
         },
-        'offer.range': {
-            'Meta': {'object_name': 'Range'},
-            'classes': ('django.db.models.fields.related.ManyToManyField', [], {'symmetrical': 'False', 'related_name': "'classes'", 'blank': 'True', 'to': "orm['catalogue.ProductClass']"}),
-            'date_created': ('django.db.models.fields.DateTimeField', [], {'auto_now_add': 'True', 'blank': 'True'}),
-            'excluded_products': ('django.db.models.fields.related.ManyToManyField', [], {'symmetrical': 'False', 'related_name': "'excludes'", 'blank': 'True', 'to': "orm['catalogue.Product']"}),
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'included_categories': ('django.db.models.fields.related.ManyToManyField', [], {'symmetrical': 'False', 'related_name': "'includes'", 'blank': 'True', 'to': "orm['catalogue.Category']"}),
-            'included_products': ('django.db.models.fields.related.ManyToManyField', [], {'symmetrical': 'False', 'related_name': "'includes'", 'blank': 'True', 'to': "orm['catalogue.Product']"}),
-            'includes_all_products': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
-            'name': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '128'})
+        u'django_facebook.facebookcustomuser': {
+            'Meta': {'object_name': 'FacebookCustomUser'},
+            u'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'})
         }
     }
 
