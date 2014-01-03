@@ -4,11 +4,11 @@ from setuptools import setup, find_packages
 from accounts import VERSION
 
 
-setup(name='django-oscar-accounts',
+setup(name='django-account-balances',
       version=VERSION,
-      author="David Winterbottom",
-      author_email="david.winterbottom@tangentlabs.co.uk",
-      description="Managed accounts for django-oscar",
+      author="Jason Carver",
+      author_email="jason@membright.com",
+      description="Track account credits in Django",
       long_description=open('README.md').read(),
       license=open('LICENSE').read(),
       packages=find_packages(exclude=['sandbox*', 'tests*']),
@@ -22,5 +22,4 @@ setup(name='django-oscar-accounts',
           'License :: OSI Approved :: BSD License',
           'Operating System :: Unix',
           'Programming Language :: Python'],
-      install_requires=['django-oscar>=0.5',
-                        'python-dateutil>=2.1,<2.2'])
+      install_requires=['python-dateutil>=2.1,<2.2'])

@@ -109,10 +109,6 @@ class Account(models.Model):
     start_date = models.DateTimeField(null=True, blank=True)
     end_date = models.DateTimeField(null=True, blank=True)
 
-    # Accounts are sometimes restricted to only work on a specific range of
-    # products.  This is the only link with Oscar.
-    product_range = models.ForeignKey('offer.Range', null=True, blank=True)
-
     # Allow accounts to be restricted for products only (ie can't be used to
     # pay for shipping)
     can_be_used_for_non_products = models.BooleanField(
