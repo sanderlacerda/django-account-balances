@@ -41,9 +41,15 @@ Features
 Installation
 ------------
 
-TODO: make available on pypi for pip installation.
+Install with:
 
-You should set-up a cronjob that calls:
+    pip install django-account-balances
+
+Then add `accounts` to your `INSTALLED_APPS` and run
+
+    ./manage migrate accounts
+
+Finally, set-up a daily cronjob that calls:
 
     ./manage.py close_expired_accounts
 
