@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 import datetime
 from django.conf import settings
-from south.db import db
-from south.v2 import SchemaMigration
-from django.db import models
+#from south.db import db
+#from south.v2 import SchemaMigration
+from django.db import migrations, models
+
 
 try:
     from oscar.core.compat import AUTH_USER_MODEL, AUTH_USER_MODEL_NAME
@@ -15,7 +16,8 @@ except ImportError:
         raise ImproperlyConfigured("AUTH_USER_MODEL must be of the form 'app_label.model_name'")
 
 
-class Migration(SchemaMigration):
+#class Migration(SchemaMigration):
+class Migration(migrations.Migration):
 
     def forwards(self, orm):
         # Adding model 'AccountType'

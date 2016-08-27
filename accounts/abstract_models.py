@@ -57,6 +57,8 @@ class AccountType(MP_Node):
 
 class Account(models.Model):
     # Metadata
+    address = models.CharField(
+        max_length=256, unique=True, null=True)
     name = models.CharField(
         max_length=128, unique=True, null=True, blank=True)
     description = models.TextField(
@@ -118,6 +120,10 @@ class Account(models.Model):
                    "shipping and other charges"))
 
     date_created = models.DateTimeField(auto_now_add=True)
+
+    # insert currency
+    currency = models.CharField(
+        max_length=64, null=True)
 
     objects = models.Manager()
     active = ActiveAccountManager()
@@ -258,25 +264,28 @@ class PostingManager(models.Manager):
     Apparently, finance people refer to "posting a transaction"; hence why this
     """
 
-    def create(self, source, destination, amount, parent=None,
+    def create(self, source, destination, amount_from, amount_to, exchange_rate, parent=None,
                user=None, merchant_reference=None, description=None):
         # Write out transfer (which involves multiple writes).  We use a
         # database transaction to ensure that all get written out correctly.
-        self.verify_transfer(source, destination, amount, user)
+        self.verify_transfer(source, destination, amount_from, amount_to, exchange_rate, user)
         with transaction.commit_on_success():
             transfer = self.get_query_set().create(
                 source=source,
                 destination=destination,
-                amount=amount,
+                #amount=amount,
+                amount_from=amount_from,amount_to=amount_to,
+                exchange_rate=exchange_rate,
                 parent=parent,
                 user=user,
                 merchant_reference=merchant_reference,
                 description=description)
             # Create transaction records for audit trail
             transfer.transactions.create(
-                account=source, amount=-amount)
+                account=source, amount_from=-amount_from)
+                #account=source, amount_from=-amount_from)
             transfer.transactions.create(
-                account=destination, amount=amount)
+                account=destination, amount_to=amount_to)
             # Update the cached balances on the accounts
             source.save()
             destination.save()
@@ -287,12 +296,12 @@ class PostingManager(models.Manager):
         # transaction behaviour.
         return obj
 
-    def verify_transfer(self, source, destination, amount, user=None):
+    def verify_transfer(self, source, destination, amount_from, amount_to, exchange_rate, user=None):
         """
         Test whether the proposed transaction is permitted.  Raise an exception
         if not.
         """
-        if amount <= 0:
+        if amount_from <= 0:
             raise exceptions.InvalidAmount("Debits must use a positive amount")
         if not source.is_open():
             raise exceptions.ClosedAccount("Source account has been closed")
@@ -303,10 +312,10 @@ class PostingManager(models.Manager):
         if not destination.is_open():
             raise exceptions.ClosedAccount(
                 "Destination account has been closed")
-        if not source.is_debit_permitted(amount):
+        if not source.is_debit_permitted(amount_from):
             msg = "Unable to debit %.2f from account #%d:"
             raise exceptions.InsufficientFunds(
-                msg % (amount, source.id))
+                msg % (amount_from, source.id))
 
 
 class Transfer(models.Model):
@@ -325,7 +334,10 @@ class Transfer(models.Model):
                                related_name='source_transfers')
     destination = models.ForeignKey('accounts.Account',
                                     related_name='destination_transfers')
-    amount = models.DecimalField(decimal_places=2, max_digits=12)
+  
+    #amount = models.DecimalField(decimal_places=2, max_digits=12)
+    amount_from = models.DecimalField(decimal_places=8, max_digits=16, null=True)
+    amount_to = models.DecimalField(decimal_places=8, max_digits=16, null=True)
 
     # We keep track of related transfers (eg multiple refunds of the same
     # redemption) using a parent system
@@ -344,6 +356,11 @@ class Transfer(models.Model):
     username = models.CharField(max_length=128)
 
     date_created = models.DateTimeField(auto_now_add=True)
+
+    # xch rates
+    exchange = models.CharField(max_length=128, null=True)
+    currency_from = models.CharField(max_length=128, null=True)
+    currency_to = models.CharField(max_length=128, null=True)
 
     # Use a custom manager that extends the create method to also create the
     # account transactions.
@@ -386,11 +403,11 @@ class Transfer(models.Model):
         Return the maximum amount that can be refunded against this transfer
         """
         aggregates = self.related_transfers.filter(
-            source=self.destination).aggregate(sum=Sum('amount'))
+            source=self.destination).aggregate(sum=Sum('amount_from'))
         already_refunded = aggregates['sum']
         if already_refunded is None:
-            return self.amount
-        return self.amount - already_refunded
+            return self.amount_from
+        return self.amount_from - already_refunded
 
     def as_dict(self):
         return {
@@ -399,7 +416,11 @@ class Transfer(models.Model):
             'source_name': self.source.name,
             'destination_code': self.destination.code,
             'destination_name': self.destination.name,
-            'amount': "%.2f" % self.amount,
+            'amount_from': "%.2f" % self.amount_from,
+            'amount_to': "%.2f" % self.amount_to,
+            'exchange': self.exchange,
+            'currency_from': "%.2f" % self.currency_from,
+            'currency_to': "%.2f" % self.currency_to,
             'available_to_refund': "%.2f" % self.max_refund(),
             'datetime': self.date_created.isoformat(),
             'merchant_reference': self.merchant_reference,
@@ -423,7 +444,10 @@ class Transaction(models.Model):
 
     # The sum of this field over the whole table should always be 0.
     # Credits should be positive while debits should be negative
-    amount = models.DecimalField(decimal_places=2, max_digits=12)
+    #amount = models.DecimalField(decimal_places=2, max_digits=12)
+    amount_from = models.DecimalField(decimal_places=8, max_digits=16, null=True)
+    amount_to = models.DecimalField(decimal_places=8, max_digits=16, null=True)
+    exchange_rate = models.DecimalField(decimal_places=8, max_digits=16, null=True)
     date_created = models.DateTimeField(auto_now_add=True)
 
     def __unicode__(self):
@@ -438,8 +462,19 @@ class Transaction(models.Model):
         raise RuntimeError("Transactions cannot be deleted")
 
 
+class Details(models.Model):
+    '''
+    Prices and amounts of each sub-transaction in each exchange ]
+    '''
+    transaction = models.ForeignKey(Transaction)
+    exchange = models.CharField(max_length=30)
+    exchange_rate = models.DecimalField(decimal_places=8, max_digits=16)
+    amount = models.DecimalField(decimal_places=8, max_digits=16)
+
+
 class IPAddressRecord(models.Model):
-    ip_address = models.IPAddressField(_("IP address"), unique=True)
+    #ip_address = models.IPAddressField(_("IP address"), unique=True)
+    ip_address = models.GenericIPAddressField(_("IP address"), unique=True)
     total_failures = models.PositiveIntegerField(default=0)
     consecutive_failures = models.PositiveIntegerField(default=0)
     date_created = models.DateTimeField(auto_now_add=True)
