@@ -97,14 +97,14 @@ class Account(models.Model):
     # zero which means the account cannot run a negative balance.  A 'source'
     # account will have no credit limit meaning it can transfer funds to other
     # accounts without limit.
-    credit_limit = models.DecimalField(decimal_places=2, max_digits=12,
-                                       default=D('0.00'), null=True,
+    credit_limit = models.DecimalField(decimal_places=8, max_digits=18,
+                                       default=D('0.00000000'), null=True,
                                        blank=True)
 
     # For performance, we keep a cached balance.  This can always be
     # recalculated from the account transactions.
-    balance = models.DecimalField(decimal_places=2, max_digits=12,
-                                  default=D('0.00'), null=True)
+    balance = models.DecimalField(decimal_places=8, max_digits=18,
+                                  default=D('0.00000000'), null=True)
 
     # Accounts can have an date range to indicate when they are 'active'.  Note
     # that these dates are ignored when creating a transfer.  It is up to your
@@ -159,7 +159,7 @@ class Account(models.Model):
     def _balance(self):
         aggregates = self.transactions.aggregate(sum=Sum('amount'))
         sum = aggregates['sum']
-        return D('0.00') if sum is None else sum
+        return D('0.00000000') if sum is None else sum
 
     def num_transactions(self):
         return self.transactions.all().count()
@@ -192,7 +192,7 @@ class Account(models.Model):
             total = order_total
         if not self.product_range:
             return min(total, self.balance)
-        range_total = D('0.00')
+        range_total = D('0.00000000')
         for line in basket.all_lines():
             if self.product_range.contains_product(line.product):
                 range_total += line.line_price_incl_tax_and_discounts
@@ -336,8 +336,8 @@ class Transfer(models.Model):
                                     related_name='destination_transfers')
   
     #amount = models.DecimalField(decimal_places=2, max_digits=12)
-    amount_from = models.DecimalField(decimal_places=8, max_digits=16, null=True)
-    amount_to = models.DecimalField(decimal_places=8, max_digits=16, null=True)
+    amount_from = models.DecimalField(decimal_places=8, max_digits=18, null=True)
+    amount_to = models.DecimalField(decimal_places=8, max_digits=18, null=True)
 
     # We keep track of related transfers (eg multiple refunds of the same
     # redemption) using a parent system
@@ -358,9 +358,11 @@ class Transfer(models.Model):
     date_created = models.DateTimeField(auto_now_add=True)
 
     # xch rates
-    exchange = models.CharField(max_length=128, null=True)
+    exchange = models.DecimalField(decimal_places=8, max_digits=16, null=True)
     currency_from = models.CharField(max_length=128, null=True)
     currency_to = models.CharField(max_length=128, null=True)
+    price = models.DecimalField(decimal_places=8, max_digits=16, null=True)
+    commissions = models.DecimalField(decimal_places=2, max_digits=8, null=True)
 
     # Use a custom manager that extends the create method to also create the
     # account transactions.
