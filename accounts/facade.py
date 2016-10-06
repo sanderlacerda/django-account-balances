@@ -32,8 +32,9 @@ def close_expired_accounts():
             account.close()
 
 
-def transfer(source, destination, amount_from, amount_to,
-             parent=None, user=None, merchant_reference=None,
+def transfer(source, destination, amount_from, amount_to, exchange,
+             currency_from, currency_to, exchange_rate, commissions, #parent=None,
+             user=None, merchant_reference=None,
              description=None, exchange, currency_from, currency_to):
     """
     Transfer funds between source and destination accounts.
@@ -56,8 +57,9 @@ def transfer(source, destination, amount_from, amount_to,
         msg += " '%s'" % description
     try:
         transfer = Transfer.objects.create(
-            source, destination, amount_from, amount_to, parent, user,
-            merchant_reference, description, exchange, currency_from, currency_to)
+            source, destination, amount_from, amount_to, exchange,
+            currency_from, currency_to, exchange_rate, commissions, #parent,
+            user, merchant_reference, description)
     except exceptions.AccountException, e:
         logger.warning("%s - failed: '%s'", msg, e)
         raise
@@ -86,12 +88,14 @@ def reverse(transfer, user=None, merchant_reference=None, description=None):
             destination=transfer.source,
             amount_from=transfer.amount_to,
             amount_to=transfer.amount_from,
-            user=user,
-            merchant_reference=merchant_reference,
-            description=description,
             exchange=transfer.exchange,
             currency_from=transfer.currency_to,
-            currency_to=transfer.currency_from)
+            currency_to=transfer.currency_from,
+            exchange_rate=transfer.exchange_rate,
+            commissions=transfer.commissions,
+            user=user,
+            merchant_reference=merchant_reference,
+            description=description)
     except exceptions.AccountException, e:
         logger.warning("%s - failed: '%s'", msg, e)
         raise

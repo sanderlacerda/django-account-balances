@@ -2,7 +2,12 @@ from decimal import Decimal as D
 
 
 class Allocations(object):
-
+    '''
+    When used with goods, only needs 'code' and 'amount'. Buy different
+    products and spend an amount x of funds.
+    With assets it needs: exchange, amount. Buy amounts of the asset in
+    different exchanges. 
+    '''
     def __init__(self):
         self._allocations = {}
 

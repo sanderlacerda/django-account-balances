@@ -13,9 +13,9 @@ class AccountAdmin(admin.ModelAdmin):
 
 class TransferAdmin(admin.ModelAdmin):
     list_display = ['reference', 'amount_from', 'amount_to', 'source', 'destination',
-                    'user', 'description', 'date_created', 'exchange', 'currency_from', 'currency_to']
-    readonly_fields = ('amount_from', 'amount_to', 'source', 'destination', 'description',
-                       'user', 'username', 'date_created')
+                    'user', 'description', 'date_created', 'exchange', 'currency_from', 'currency_to', 'exchange_rate', 'commissions']
+    #readonly_fields = ('amount_from', 'amount_to', 'source', 'destination', 'description',
+    #                   'user', 'username', 'date_created')
 
 class TransactionAdmin(admin.ModelAdmin):
     list_display = ['id', 'transfer', 'account', 'amount_from', 'amount_to', 'exchange_rate', 'date_created']

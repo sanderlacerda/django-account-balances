@@ -58,5 +58,35 @@ def create_giftcard(order_number, user, amount):
     facade.transfer(source, destination, amount, user,
                     "Create new account")
 
-#def operation():
   
+def operation(order_number, user, allocations):
+    """
+    Buy asset
+    (exchange, amount and price)
+     
+    """
+    transfers = []
+    # destination is the account denominated in the target asset
+    destination = core.redemptions_account()
+    for code, amount in allocations.items():
+        try:
+            account = Account.active.get(code=code)
+        except Account.DoesNotExist:
+            raise UnableToTakePayment(
+                _("No active account found with code %s") % code)
+
+        # We verify each transaction
+        try:
+            Transfer.objects.verify_transfer(
+                account, destination, amount, user)
+        except exceptions.AccountException, e:
+            raise UnableToTakePayment(str(e))
+
+        transfers.append((account, destination, amount))
+        #transfers.append((account, destination, amount_from, amount_to))
+
+    # All transfers verified, now redeem
+    for account, destination, amount in transfers:
+        facade.transfer(account, destination, amount,
+                        user=user, merchant_reference=order_number,
+                        description="Redeemed to pay for order %s" % order_number)
